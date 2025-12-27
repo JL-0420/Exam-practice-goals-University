@@ -1,0 +1,117 @@
+/* mark.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin: 30px 0;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #3498db;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    background-color: #34db69;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background-color: #34db69;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button:last-of-type {
+    background-color: #2ecc71;
+}
+
+button:last-of-type:hover {
+    background-color: #27ae60;
+}
+
+#wrong-questions-container {
+    display: grid;
+    gap: 25px;
+    margin-top: 30px;
+}
+
+.wrong-question {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wrong-question:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.wrong-question h3 {
+    color: #e74c3c;
+    margin-bottom: 15px;
+    padding-left: 10px;
+    border-left: 4px solid #e74c3c;
+}
+
+.wrong-question p {
+    margin: 10px 0;
+    padding: 5px 0;
+}
+
+.wrong-question p:nth-child(2) { /* 题目样式 */
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.wrong-question p:nth-child(4) { /* 你的答案 */
+    color: #e67e22;
+}
+
+.wrong-question p:nth-child(5) { /* 正确答案 */
+    color: #27ae60;
+    font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+    }
+    
+    .wrong-question {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+    }
+}

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题回顾</title>
+    <link rel="stylesheet" href="css/mark.css">
+    
+</head>
+<body>
+    <h1>错题回顾</h1>
+    <button id="saveButton" onclick="savejson()">保存错题记录</button>
+    <div id="wrong-questions-container"></div>
+    <button onclick="window.location.href='index.html'">返回首页</button>
+
+    <script>
+        // 从localStorage获取错题数据并显示
+        const wrongQuestions = JSON.parse(localStorage.getItem('wrongQuestions') || '[]');
+        const container = document.getElementById('wrong-questions-container');
+        let i=0;
+        if (wrongQuestions.length === 0) {
+            container.innerHTML = '<p>没有标记的错题</p>';
+        } else {
+            wrongQuestions.forEach(q => {
+                i++;
+                const div = document.createElement('div');
+                div.className = 'wrong-question';
+                div.innerHTML = `
+                    <h3>第${i}题（${q.type}）</h3>
+                    <p>题目：${q.question}</p>
+                    <p>选项：${Object.entries(q.options).map(([k,v]) => k + '. ' + v).join('，')}</p>
+                    <p>你的答案：${Array.isArray(q.userAnswer) ? q.userAnswer.join(', ') : q.userAnswer}</p>
+                    <p>正确答案：${q.correctAnswer.join(', ')}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 生成时间戳作为文件名
+        function timeAsName() {
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const name = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+            return name;
+        }
+
+        //保存
+        function savejson() {
+            let name = timeAsName();
+            localStorage.setItem(name, JSON.stringify(wrongQuestions));
+        }
+    </script>
+</body>
+</html>

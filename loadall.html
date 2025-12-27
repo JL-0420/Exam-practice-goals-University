@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="scoreboard">
+        <!-- <h3>得分板</h3> -->
+        <p>当前得分: <input id="score" value="0"></input>
+        已答题: <span id="answered">0</span>/<span id="total">80</span></p>
+    </div>
+
+    <div id="loading">
+        <h2>正在加载题目...如果超过10s请重新启动</h2>
+    </div>
+
+    <div id="question-container" class="container">
+        <div class="question-header">
+            <h3>第 <span id="current-question">1</span> 题</h3>
+            <p id="question-text"></p>
+        </div>
+        <div class="options" id="options-container"></div>
+        <div class="result" id="result"></div>
+        <div class="controls">
+            <button class="nav-btn" id="prev-btn" disabled>上一题</button>
+            <div>
+                <button class="submit-btn" id="submit-btn">提交答案</button>
+                <button class="mark-btn" id="mark-btn" style="display:none">标记为错题</button>
+                <button class="up-btn" id="up-btn" style="display:none" onclick="showFinalScreen()">交卷</button>
+            </div>
+            <button class="nav-btn" id="next-btn">下一题</button>
+        </div>
+    </div>
+
+    <div id="final-screen" class="container final-screen">
+        <h2>答题结束!</h2>
+        <p>你的最终得分是: <span id="final-score">0</span></p>
+        <p>共答对: <span id="correct-count">0</span> 题</p>
+        <p>答错: <span id="wrong-count">0</span> 题</p>
+        <p>标记错题: <span id="marked-count">0</span> 题</p>
+        <button id="review-btn">查看错题</button>
+    </div>
+
+
+
+    <script>
+        function getUrlParams() {// 从URL参数中获取数据
+            const params = new URLSearchParams(window.location.search);
+            return {
+                num1: params.get('num1') || 40, // 无参数时用默认值
+                num2: params.get('num2') || 20,
+                num3: params.get('num3') || 20
+            };
+        }
+        const nums = getUrlParams();
+    
+    // 全局变量
+        let allQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answeredCount = 0;
+        let userAnswers = [];
+        let questionStatus = []; // 'unanswered', 'correct', 'incorrect'
+        let markedQuestions = [];
+        let questionTypes = []; // 记录每个题目的类型
+
+        // 初始化函数
+        async function init() {
+            try {
+
+                const markChoiceQuestions = localStorage.getItem("marksaveall") ? JSON.parse(localStorage.getItem('marksaveall')) : [];
+
+                // 合并所有题目并记录类型
+                markChoiceQuestions.forEach(q => {
+                    allQuestions.push(q);
+                    if (q.题目类型 === "单选题"){
+                        questionTypes.push('single');
+                    } else if (q.题目类型 === "多选题"){
+                        questionTypes.push('multiple');
+                    } else if (q.题目类型 === "判断题"){
+                        questionTypes.push('truefalse');
+                    }
+                });
+
+
+                // 初始化答案和状态数组
+                userAnswers = new Array(allQuestions.length).fill(null);
+                questionStatus = new Array(allQuestions.length).fill('unanswered');
+
+                // 显示第一个问题
+                showQuestion(0);
+                
+                // 隐藏加载界面，显示答题界面
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('question-container').classList.add('active');
+            } catch (error) {
+                console.error('加载题目出错:', error);
+                document.getElementById('loading').innerHTML = '<h2>加载题目出错，请刷新页面重试</h2>';
+            }
+        }
+
+        // 从数组中随机选择指定数量的元素
+        function getRandomQuestions(questions, count) {
+            // 创建数组副本以避免修改原数组
+            const shuffled = [...questions].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+
+        // 显示指定索引的问题
+        function showQuestion(index) {
+            if (index < 0 || index >= allQuestions.length) return;
+            
+            currentQuestionIndex = index;
+            const question = allQuestions[index];
+            
+            // 更新问题编号
+            document.getElementById('current-question').textContent = index + 1;
+            
+            // 更新问题文本
+            document.getElementById('question-text').textContent = question.题目;
+            
+            // 清空并生成选项
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            // 根据题型生成不同的选项
+            const type = questionTypes[index];
+            for (const [key, value] of Object.entries(question.选项)) {
+                const option = document.createElement('div');
+                option.className = 'option';
+                option.dataset.value = key;
+                
+                // 多选题使用复选框，单选题和判断题使用单选框
+                if (type === 'multiple') {
+                    option.innerHTML = `
+                        <input type="checkbox" id="option-${key}" name="options" value="${key}">
+                        <label for="option-${key}">${key}. ${value}</label>
+                    `;
+                } else {
+                    option.innerHTML = `
+                        <input type="radio" id="option-${key}" name="options" value="${key}">
+                        <label for="option-${key}">${key}. ${value}</label>
+                    `;
+                }
+                
+                // 如果已有答案，恢复选择状态
+                if (userAnswers[index]) {
+                    if (type === 'multiple') {
+                        const values = userAnswers[index];
+                        if (values.includes(key)) {
+                            option.querySelector('input').checked = true;
+                        }
+                    } else {
+                        if (userAnswers[index] === key) {
+                            option.querySelector('input').checked = true;
+                        }
+                    }
+                }
+                
+                optionsContainer.appendChild(option);
+            }
+            
+            // 重置结果显示
+            const resultElement = document.getElementById('result');
+            resultElement.style.display = 'none';
+            
+            // 重置按钮状态
+            document.getElementById('submit-btn').style.display = 'inline-block';
+            document.getElementById('mark-btn').style.display = 'none';
+            
+            // 如果已经答过题，显示结果
+            if (questionStatus[index] !== 'unanswered') {
+                const markIndex = markedQuestions.indexOf(index);
+                showResult(index);
+                document.getElementById('submit-btn').style.display = 'none';
+                
+                document.getElementById('mark-btn').style.display = 'inline-block';
+                if (markIndex !== -1) {
+                    document.getElementById('mark-btn').textContent = '取消标记';
+                    document.getElementById('mark-btn').style.backgroundColor = '#f5222d';
+                } else {
+                    document.getElementById('mark-btn').textContent = '标记为错题';
+                    document.getElementById('mark-btn').style.backgroundColor = '#faad14';
+                    console.log('questionStatus:', questionStatus);
+                }
+                
+                
+
+                const inputs = optionsContainer.querySelectorAll('input');
+                inputs.forEach(input => {
+                    input.disabled = true;// 禁用选项
+                });
+            }
+            
+            // 更新导航按钮状态
+            document.getElementById('prev-btn').disabled = index === 0;
+            document.getElementById('next-btn').disabled = index === allQuestions.length - 1;
+        }
+
+        // 提交答案
+        function submitAnswer() {
+            const question = allQuestions[currentQuestionIndex];
+            const type = questionTypes[currentQuestionIndex];
+            let userAnswer;
+            
+            // 获取用户答案
+            if (type === 'multiple') {
+                const checkedOptions = document.querySelectorAll('input[name="options"]:checked');
+                userAnswer = Array.from(checkedOptions).map(option => option.value);
+                if (userAnswer.length === 0) {
+                    alert('请至少选择一个选项');
+                    return;
+                }
+            } else {
+                const selectedOption = document.querySelector('input[name="options"]:checked');
+                if (!selectedOption) {
+                    alert('请选择一个选项');
+                    return;
+                }
+                userAnswer = selectedOption.value;
+            }
+            
+            // 保存用户答案
+            userAnswers[currentQuestionIndex] = userAnswer;
+            
+            // 检查答案是否正确
+            const isCorrect = checkAnswer(userAnswer, question.答案, type);
+            console.log('用户答案:', userAnswer, '正确答案:', question.答案, '是否正确:', isCorrect);
+            
+            // 更新状态和分数
+            questionStatus[currentQuestionIndex] = isCorrect ? 'correct' : 'incorrect';
+            // if (questionStatus[currentQuestionIndex] === 'incorrect') {
+            //     toggleMark(); // 自动标记为错题
+            // }
+            answeredCount++;
+            
+            let score_0 = document.getElementById('score');// 获取当前得分元素
+            score = Number(score_0.value);
+            
+            if (isCorrect) {
+                const index = currentQuestionIndex;
+                console.log('回答正确，更新得分');
+                markedQuestions.push(index);
+                updateScore(type);
+                toggleMark();
+            } else {
+                const index = currentQuestionIndex;
+                console.log('回答错误，未更新得分');
+                markedQuestions.push(index);
+                toggleMark();
+                toggleMark();
+            }
+            
+            // 更新得分板
+
+            updateScoreboard();
+            
+            
+            
+            // 显示结果
+            showResult(currentQuestionIndex);
+            
+            // 隐藏提交按钮，显示标记按钮
+            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('mark-btn').style.display = 'inline-block';
+            
+            // 禁用选项
+            const inputs = document.querySelectorAll('input[name="options"]');
+            inputs.forEach(input => {
+                input.disabled = true;
+            });
+            
+            
+
+            // 如果是最后一题，全部答完后显示最终页面
+            if (Number(document.getElementById('current-question').textContent) === allQuestions.length) {
+                document.getElementById('up-btn').style.display = 'inline-block';
+            }
+        }
+
+        // 检查答案是否正确
+        function checkAnswer(userAnswer, correctAnswer, type) {
+            if (type === 'multiple') {
+                // 多选题需要所有选项都匹配
+                if (userAnswer.length !== correctAnswer.length) return false;
+                return userAnswer.every(answer => correctAnswer.includes(answer));
+            }else if (type === 'truefalse') {
+                // 判断题直接比较
+                userAnswer = userAnswer == 'A' ? '对' : '错';
+                return userAnswer == correctAnswer[0];
+            }else {
+                // 单选题只需单个匹配
+                return userAnswer === correctAnswer[0];
+            }
+        }
+
+        // 更新得分
+        function updateScore(type) {
+                let score_0 = document.getElementById('score');
+                score = Number(score_0.value);
+                console.log('当前得分：', score);
+                score += type === 'multiple' ? 2 : 1;
+                console.log('新得分：', score);
+                return score;
+        }
+        // 显示答案结果
+        function showResult(index) {
+            const resultElement = document.getElementById('result');
+            const question = allQuestions[index];
+            
+            if (questionStatus[index] === 'correct') {
+                resultElement.textContent = '回答正确！';
+                resultElement.className = 'result correct';
+            } else {
+                resultElement.textContent = `回答错误。正确答案是：${question.答案.join(', ')}`;
+                resultElement.className = 'result incorrect';
+                
+            }
+            
+            resultElement.style.display = 'block';
+            
+            // 高亮正确答案
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => {
+                const value = option.dataset.value;
+                if (question.答案.includes(value)) {
+                    option.style.backgroundColor = '#f6ffed';
+                    option.style.borderColor = '#b7eb8f';
+                }
+            });
+        }
+
+        // 更新得分板
+        function updateScoreboard() {
+            document.getElementById('score').value = score;
+            document.getElementById('answered').textContent = answeredCount;
+            document.getElementById('total').textContent = allQuestions.length;
+        }
+
+        // 标记/取消标记错题
+        function toggleMark() {
+            const index = currentQuestionIndex;
+            const markIndex = markedQuestions.indexOf(index);
+            const question = allQuestions[currentQuestionIndex];
+            const markQuestionObj = {
+                题目: question.题目,
+                选项: question.选项,
+                答案: question.答案,
+                题目类型: question.题目类型,
+                userAnswer: userAnswers[index]
+            };
+            if (markIndex === -1) {
+                markedQuestions.push(index);
+                marksavaquetionall("marksaveall", markQuestionObj);
+                 // 标记为错题
+                document.getElementById('mark-btn').textContent = '取消标记';
+                document.getElementById('mark-btn').style.backgroundColor = '#f5222d';
+            } else {
+                markedQuestions.splice(markIndex, 1);
+                marksavaquetionall("marksaveall", markQuestionObj);
+                // 取消标记恢复状态
+                document.getElementById('mark-btn').textContent = '标记为错题';
+                document.getElementById('mark-btn').style.backgroundColor = '#faad14';
+            }
+        }
+
+        // 显示最终页面
+        function showFinalScreen() {
+            document.getElementById('question-container').classList.remove('active');
+            document.getElementById('final-screen').classList.add('active');
+            
+            // 计算错题数量
+            const wrongCount = questionStatus.filter(status => status === 'incorrect').length;
+            
+            // 更新最终统计
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('correct-count').textContent = answeredCount - wrongCount;
+            document.getElementById('wrong-count').textContent = wrongCount;
+            document.getElementById('marked-count').textContent = markedQuestions.length;
+        }
+
+        // 生成错题数据
+        function generateWrongQuestionsData() {
+            // 收集所有答错的题目
+            const wrongQuestions = [];
+            
+            allQuestions.forEach((question, index) => {
+                if (markedQuestions.includes(index)) {
+                    wrongQuestions.push({
+                        question: question.题目,
+                        options: question.选项,
+                        userAnswer: userAnswers[index],
+                        correctAnswer: question.答案,
+                        type: question.题目类型
+                    });
+                }
+            });
+            
+            return wrongQuestions;
+        }
+
+        // 存储或删除错题
+        function marksavaquetionall(storageKey, questionObj) {
+            try {
+                // 1. 从localStorage读取现有题目列表，不存在则初始化为空数组
+                let questions = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                
+                // 2. 检查题目是否已存在（通过「题目」字段唯一判断）
+                const existsIndex = questions.findIndex(item => item.题目 === questionObj.题目);
+                
+                if (existsIndex > -1) {
+                // 3. 存在则删除该题目
+                questions.splice(existsIndex, 1);
+                console.log(`已删除题目：${questionObj.题目}`);
+                } else {
+                // 4. 不存在则添加该题目
+                questions.push(questionObj);
+                console.log(`已添加题目：${questionObj.题目}`);
+                }
+                
+                // 5. 把更新后的列表保存回localStorage
+                localStorage.setItem(storageKey, JSON.stringify(questions));
+                
+                // 返回更新后的列表，方便你查看结果
+                console.log('更新后的题目列表：', questions);
+                return questions;
+            } catch (error) {
+                console.error('操作localStorage失败：', error);
+                return [];
+            }
+        }
+
+        // 事件监听
+        document.addEventListener('DOMContentLoaded', () => {
+            // 提交按钮
+            document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+            
+            // 上一题按钮
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                showQuestion(currentQuestionIndex - 1);
+            });
+            
+            // 下一题按钮
+            document.getElementById('next-btn').addEventListener('click', () => {
+                showQuestion(currentQuestionIndex + 1);
+            });
+            
+            // 标记按钮
+            document.getElementById('mark-btn').addEventListener('click', toggleMark);
+            
+            // 查看错题按钮
+            document.getElementById('review-btn').addEventListener('click', () => {
+                // 生成错题数据并存储到localStorage
+                const wrongQuestions = generateWrongQuestionsData();
+                console.log('错题数据：', wrongQuestions);
+                localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+
+                // 跳转到mark.html
+                window.location.href = 'mark.html';
+            });
+            
+            // 初始化
+            init();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>读取LocalStorage并生成按钮</title>
+    <link rel="stylesheet" href="css/load.css">
+</head>
+<body>
+    <div id="storage-buttons"></div>
+
+    <script>
+        // 1. 获取localStorage所有键名，并按时间倒序排序
+        function getSortedStorageKeys() {
+            const keys = [];
+            // 遍历所有localStorage键名
+            for (let i = 0; i < localStorage.length; i++) {
+                keys.push(localStorage.key(i));
+            }
+
+            // 按时间字符串倒序排序（最近的在最前面）
+            // 假设时间格式为：YYYY-MM-DD HH:MM:SS 或 YYYYMMDDHHMMSS 等可直接比较的格式
+            keys.sort((a, b) => {
+                // 倒序排序：b - a 让大的（新的）时间排在前面
+                if (b > a) return 1;
+                if (b < a) return -1;
+                return 0;
+            });
+
+            // 如果存在 "wrongQuestions"，把它放到最前面（优先显示错题记录）
+            const idx = keys.indexOf('wrongQuestions');
+            if (idx !== -1) {
+                keys.splice(idx, 1);
+                keys.unshift('wrongQuestions');
+            }
+
+            return keys;
+        }
+
+        // 2. 根据排序后的键名生成按钮
+        function generateButtons() {
+            const container = document.getElementById('storage-buttons');
+            const sortedKeys = getSortedStorageKeys();
+
+            // 如果没有存储项
+            if (sortedKeys.length === 0) {
+                container.innerText = '暂无本地存储数据';
+                return;
+            }
+
+            // 遍历生成每个按钮
+            sortedKeys.forEach(key => {
+                const button = document.createElement('button');
+                if (key === "wrongQuestions"){
+                    button.innerText = "上一次答题的错题记录";
+                }else if (key === "marksaveall"   ){
+                    button.style.display = 'none';
+                }
+                else{
+                    button.innerText = key; // 按钮显示存储项名称（时间）
+                    button.style.margin = '5px'; // 仅加少量间距，无额外样式
+                }
+
+
+                // 3. 按钮点击事件：获取内容并跳转到n2.html传递数据
+                button.addEventListener('click', () => {
+                    
+                    
+                    // 获取对应键名的存储内容
+                    const content = localStorage.getItem(key);
+                    // 将内容存入localStorage（供mark.html读取）
+                    localStorage.setItem('wrongQuestions', content);
+                    // 跳转到mark.html
+                    window.location.href = 'mark.html';
+                });
+
+                container.appendChild(button);
+            });
+        }
+        // 页面加载完成后生成按钮
+        window.onload = generateButtons;
+    </script>
+</body>
+</html>
+</body>
+</html>
