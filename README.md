@@ -3,3 +3,4 @@
 主体只使用html和JavaScript
 支持直接用cordova打包成手机软件（移除启动.bat）
 内置的启动.bat需要python依赖
+题目的格式需求在exam里面的三个文件，1x是单选题文件，xs是多选题文件，pd是判断题文件
