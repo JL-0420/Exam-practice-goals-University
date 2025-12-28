@@ -26,8 +26,8 @@ Exam-practice-goals-University/
 │   ├── xs.*        # 多选题题库文件
 │   └── pd.*        # 判断题题库文件
 ├── index.html      # 项目入口页面
-├── load.html       # 加载页
-├── loadall.html    # 全量加载页
+├── load.html       # 错题记录页面
+├── loadall.html    # 错题重做页页面
 ├── main.html       # 刷题主页面
 ├── mark.html       # 答题结果/评分页面
 ├── LICENSE         # 开源许可证
@@ -48,9 +48,5 @@ Exam-practice-goals-University/
 3. 将本项目所有文件复制到  app/www/  目录下
 4. 执行  cordova platform add android/ios   添加目标平台
 5. 执行  cordova build  生成安装包，完成 App 打包
- 
-许可证
- 
-本项目基于开源许可证（详见 LICENSE 文件）开源，可自由用于个人/非商业场景，二次开发需遵循对应许可证条款。
  
  
